@@ -1,7 +1,6 @@
+from datetime import datetime
 import json
 from termcolor import cprint
-
-from asgiref.sync import async_to_sync
 
 from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
@@ -42,6 +41,7 @@ class ChatRoomConsumer(AsyncWebsocketConsumer):
                 'username': username,
             }
         )
+        await self.save_message(message, username, self.room)
         
     async def disconnect(self, code):
         return await super().disconnect(code)
@@ -65,3 +65,11 @@ class ChatRoomConsumer(AsyncWebsocketConsumer):
                 return Room.objects.create(name=name)
             except IntegrityError:
                 return None
+    
+    @database_sync_to_async
+    def save_message(self, text, author, room):
+        return Message.objects.create(
+            text=text,
+            author=author,
+            room=room,
+        )
