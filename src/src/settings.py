@@ -38,6 +38,7 @@ ALLOWED_HOSTS = ['*']
 
 INSTALLED_APPS = [
     'chatapp',
+    'authapp',
     'daphne',
     'django.contrib.admin',
     'django.contrib.auth',
