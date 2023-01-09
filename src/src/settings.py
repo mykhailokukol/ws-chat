@@ -98,6 +98,8 @@ STATIC_URL = 'static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+AUTH_USER_MODEL = 'authapp.User'
+
 STATIC_ROOT = path.join(BASE_DIR, 'static')
 
 REDIS_HOST = getenv('REDIS_HOST')

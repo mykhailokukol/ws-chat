@@ -23,6 +23,7 @@ class LoginUserSerializer(serializers.Serializer):
                     return user
             except models.User.DoesNotExist:
                 pass
+
             
 class SignUpUserSerializer(serializers.ModelSerializer):
     """ Authentication SignUp Serializer """
@@ -53,6 +54,8 @@ class SignUpUserSerializer(serializers.ModelSerializer):
 
 class UserSerializer(serializers.ModelSerializer):
     """ Default User Serializer """
+    
+    password = serializers.CharField(write_only=True)
     
     class Meta:
         model = models.User
