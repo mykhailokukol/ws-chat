@@ -1,3 +1,4 @@
+import datetime
 from pathlib import Path
 from os import getenv, path
 from dotenv import load_dotenv, find_dotenv
@@ -121,4 +122,13 @@ REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     )
+}
+
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': datetime.timedelta(days=7),
+    'REFRESH_TOKEN_LIFETIME': datetime.timedelta(days=7),
+    'AUTH_HEADER_TYPES': ('Bearer',),
+    'ROTATE_REFRESH_TOKENS': True,
+    'BLACKLIST_AFTER_ROTATION': True,
+    'ALGORITHM': 'HS256',
 }
