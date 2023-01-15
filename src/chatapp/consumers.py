@@ -17,7 +17,7 @@ from authapp.models import User
 class ChatRoomConsumer(AsyncWebsocketConsumer):
     """  """
     
-    def get_query_parameter(self, name):
+    def get_query_parameter(self, name: str):
         try:
             return self.params[name][-1]
         except KeyError:
@@ -46,21 +46,36 @@ class ChatRoomConsumer(AsyncWebsocketConsumer):
     async def receive(self, text_data=None, bytes_data=None):
         text_data = json.loads(text_data)
         
-        message = text_data['message']
-        
-        await self.channel_layer.group_send(
-            self.room_group_name, {
-                'type': 'chat_message',
-                'message': message,
-                'username': self.user.username,
-            }
-        )
-        await self.save_message(message, self.user, self.room)
-        
+        if 'message' in text_data:
+            message = text_data['message']
+            
+            await self.channel_layer.group_send(
+                self.room_group_name, {
+                    'type': 'chat_message',
+                    'message': message,
+                    'username': self.user.username,
+                }
+            )
+            await self.save_message(message, self.user, self.room)
+        if 'read_messages' in text_data:
+            await self.read_messages(text_data['read_messages'], self.room)
+            await self.channel_layer.group_send(
+                self.room_group_name, {
+                    'type': 'system_info',
+                    'text': f'Messages read by {self.user}.'
+                }
+            )
+            
     async def disconnect(self, code):
         return await super().disconnect(code)
     
-    async def chat_message(self, event):
+    async def system_info(self, event: dict):
+        text = event['text']
+        await self.send(text_data=json.dumps({
+            'system_info': text,
+        }))
+    
+    async def chat_message(self, event: dict):
         message = event['message']
         user = await self.get_user_by_username(event['username'])
         
@@ -70,7 +85,20 @@ class ChatRoomConsumer(AsyncWebsocketConsumer):
         }))
     
     @database_sync_to_async
-    def get_user_by_token(self, token):
+    def read_messages(self, messages: list, room: Room = None):
+        if not room:
+            room = self.room
+        if messages == 'all':
+            messages = Message.objects.filter(room=room, is_read=False).exclude(author=self.user)
+        else:
+            messages = Message.objects.filter(id__in=messages, room=room, is_read=False).exclude(author=self.user)
+        print(messages)
+        for message in messages:
+            message.is_read = True
+            message.save()
+    
+    @database_sync_to_async
+    def get_user_by_token(self, token: str):
         try:
             decoded_user_token = jwt.decode(
                 token, key=settings.SECRET_KEY, algorithms=settings.SIMPLE_JWT['ALGORITHM']
@@ -85,7 +113,7 @@ class ChatRoomConsumer(AsyncWebsocketConsumer):
             return None
         
     @database_sync_to_async
-    def get_user_by_username(self, username):
+    def get_user_by_username(self, username: str):
         user = User.objects.filter(username=username)
         if user.exists():
             data = UserSerializer(user.last()).data
@@ -93,7 +121,7 @@ class ChatRoomConsumer(AsyncWebsocketConsumer):
         return None
     
     @database_sync_to_async
-    def get_room(self, name):
+    def get_room(self, name: str):
         room_exists = Room.objects.filter(name=name).exists()
         if room_exists:
             return Room.objects.filter(name=name).last()
@@ -104,7 +132,7 @@ class ChatRoomConsumer(AsyncWebsocketConsumer):
                 return None
     
     @database_sync_to_async
-    def save_message(self, text, author, room):
+    def save_message(self, text: str, author: User, room: Room):
         return Message.objects.create(
             text=text,
             author=author,
