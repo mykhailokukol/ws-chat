@@ -19,12 +19,12 @@ class ChatRoomConsumer(AsyncWebsocketConsumer):
     
     def get_query_parameter(self, name):
         try:
-            return self.params[name.encode('utf-8')][-1].decode()
+            return self.params[name][-1]
         except KeyError:
             cprint('Invalid parameter or no parameter was given.', 'red')
     
     async def connect(self):
-        self.params = parse_qs(self.scope['query_string'], encoding='utf-8')
+        self.params = parse_qs(self.scope['query_string'].decode('utf-8'), encoding='utf-8')
         
         user = self.get_query_parameter('token')
         self.user = await self.get_user_by_token(user)
