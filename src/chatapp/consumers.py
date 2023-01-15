@@ -10,6 +10,7 @@ from django.db import IntegrityError
 from django.conf import settings
 
 from authapp.serializers import UserSerializer
+from chatapp.serializers import MessageSerializer
 from chatapp.models import Room, Message
 from authapp.models import User
 
@@ -28,6 +29,9 @@ class ChatRoomConsumer(AsyncWebsocketConsumer):
         
         user = self.get_query_parameter('token')
         self.user = await self.get_user_by_token(user)
+        
+        await self.accept()
+        
         if not self.user:
             return await self.close()
         
@@ -41,7 +45,14 @@ class ChatRoomConsumer(AsyncWebsocketConsumer):
             self.room_group_name, self.channel_name
         )
         
-        await self.accept()
+        old_messages = await self.get_old_messages(self.room)
+        for message in old_messages:
+            await self.channel_layer.group_send(
+                    self.room_group_name, {
+                        'type': 'old_messages',
+                        'message': message
+                    }
+                )
         
     async def receive(self, text_data=None, bytes_data=None):
         text_data = json.loads(text_data)
@@ -83,6 +94,19 @@ class ChatRoomConsumer(AsyncWebsocketConsumer):
             'message': message, 
             'user': user,
         }))
+        
+    async def old_messages(self, event: dict):
+        message = event['message']
+        
+        await self.send(text_data=json.dumps(message))
+    
+    @database_sync_to_async
+    def get_old_messages(self, room: Room = None):
+        if not room:
+            room = self.room
+        messages = Message.objects.filter(room=room)
+        serializer = MessageSerializer(messages, many=True)
+        return serializer.data
     
     @database_sync_to_async
     def read_messages(self, messages: list, room: Room = None):
@@ -92,7 +116,6 @@ class ChatRoomConsumer(AsyncWebsocketConsumer):
             messages = Message.objects.filter(room=room, is_read=False).exclude(author=self.user)
         else:
             messages = Message.objects.filter(id__in=messages, room=room, is_read=False).exclude(author=self.user)
-        print(messages)
         for message in messages:
             message.is_read = True
             message.save()
